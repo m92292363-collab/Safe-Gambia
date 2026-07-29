@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EAF6EE">
+<meta name="color-scheme" content="light">
+<title>Safe — Send money across The Gambia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --bg:        #EAF6EE;   /* light green wash — the whole app sits on this */
+    --card:      #FFFFFF;
+    --leaf:      #3E9B63;   /* primary light-leaf green */
+    --leaf-deep: #1E6B41;   /* pressed / headings */
+    --leaf-tint: #D7EEDF;   /* chips, soft fills */
+    --ink:       #14251B;
+    --muted:     #5C7264;
+    --sand:      #D8A93D;   /* Dalasi gold — used only for money accents */
+    --danger:    #C4453B;
+    --radius:    18px;
+    --shadow:    0 6px 24px rgba(30,107,65,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{ -webkit-text-size-adjust:100% }
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg); color:var(--ink);
+    min-height:100dvh;
+  }
+  h1,h2,h3,.display{ font-family:'Sora',sans-serif }
+  button{ font-family:inherit; cursor:pointer }
+  input,select{ font-family:inherit }
+
+  /* ---------- shell ---------- */
+  .wrap{ max-width:480px; margin:0 auto; padding:16px 16px 96px }
+  header.app{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 4px 10px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px }
+  .brand .mark{
+    width:38px;height:38px;border-radius:12px;
+    background:var(--leaf); color:#fff; display:grid; place-items:center;
+    font-family:'Sora'; font-weight:800; font-size:19px;
+    box-shadow:var(--shadow);
+  }
+  .brand b{ font-family:'Sora'; font-weight:700; font-size:18px; letter-spacing:-.02em }
+  .brand small{ display:block; color:var(--muted); font-size:11px; font-weight:500 }
+  .iconbtn{
+    border:0; background:var(--card); width:38px; height:38px; border-radius:12px;
+    box-shadow:var(--shadow); font-size:16px; color:var(--leaf-deep);
+  }
+
+  /* ---------- banknote balance card (signature) ---------- */
+  .note{
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg,#F2FAF4 0%, #DFF1E5 55%, #CFE9DA 100%);
+    border:1px solid #BFE3CD;
+    border-radius:var(--radius);
+    padding:20px 20px 18px;
+    box-shadow:var(--shadow);
+  }
+  .note svg.guilloche{ position:absolute; inset:0; width:100%; height:100%; opacity:.5; pointer-events:none }
+  .note .wm{
+    position:absolute; right:-8px; bottom:-26px;
+    font-family:'Sora'; font-weight:800; font-size:120px; line-height:1;
+    color:rgba(62,155,99,.10); pointer-events:none; user-select:none;
+  }
+  .note .label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--leaf-deep); font-weight:600 }
+  .note .amount{
+    font-family:'Sora'; font-weight:800; font-size:38px; letter-spacing:-.02em;
+    margin-top:6px; font-variant-numeric:tabular-nums; color:var(--ink);
+  }
+  .note .amount small{ font-size:18px; color:var(--leaf-deep); font-weight:700; margin-right:6px }
+  .note .holder{ margin-top:14px; display:flex; justify-content:space-between; align-items:flex-end; position:relative }
+  .note .holder .who{ font-size:13px; font-weight:600 }
+  .note .holder .who span{ display:block; font-size:11px; color:var(--muted); font-weight:500 }
+  .note .serial{ font-size:10px; letter-spacing:.12em; color:var(--leaf-deep); font-weight:600 }
+
+  /* ---------- cards, actions ---------- */
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px }
+  .action{
+    background:var(--card); border:0; border-radius:var(--radius); padding:16px 14px;
+    text-align:left; box-shadow:var(--shadow);
+  }
+  .action .em{ font-size:22px }
+  .action b{ display:block; font-family:'Sora'; font-size:14px; margin-top:8px }
+  .action span{ font-size:12px; color:var(--muted) }
+  .card{
+    background:var(--card); border-radius:var(--radius);
+    padding:18px; box-shadow:var(--shadow); margin-top:14px;
+  }
+  .card h2{ font-size:16px; margin-bottom:12px; color:var(--leaf-deep) }
+
+  /* ---------- forms ---------- */
+  .field{ margin-bottom:12px }
+  .field label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px }
+  .field input, .field select{
+    width:100%; padding:13px 14px; font-size:16px;
+    border:1.5px solid #CFE4D6; border-radius:12px; background:#FBFDFB; color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ outline:2px solid var(--leaf); border-color:var(--leaf) }
+  .hint{ font-size:12px; color:var(--muted); margin-top:4px }
+  .btn{
+    width:100%; padding:15px; border:0; border-radius:14px;
+    background:var(--leaf); color:#fff; font-family:'Sora'; font-weight:700; font-size:15px;
+    box-shadow:0 6px 16px rgba(62,155,99,.35);
+  }
+  .btn:active{ background:var(--leaf-deep) }
+  .btn.ghost{ background:var(--leaf-tint); color:var(--leaf-deep); box-shadow:none }
+  .btn.small{ width:auto; padding:9px 14px; font-size:13px; border-radius:10px }
+  .btn[disabled]{ opacity:.6 }
+
+  /* ---------- lists ---------- */
+  .tx{ display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid #EEF5F0 }
+  .tx:last-child{ border-bottom:0 }
+  .tx .dot{ width:38px;height:38px;border-radius:12px; display:grid;place-items:center; background:var(--leaf-tint); font-size:16px; flex:none }
+  .tx .info{ flex:1; min-width:0 }
+  .tx .info b{ font-size:14px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .tx .info span{ font-size:12px; color:var(--muted) }
+  .tx .amt{ font-family:'Sora'; font-weight:700; font-size:14px; font-variant-numeric:tabular-nums }
+  .tx .amt.in{ color:var(--leaf-deep) }
+  .tx .amt.out{ color:var(--ink) }
+
+  /* ---------- tab bar ---------- */
+  nav.tabs{
+    position:fixed; left:0; right:0; bottom:0;
+    background:rgba(255,255,255,.94); backdrop-filter:blur(10px);
+    border-top:1px solid #E2EFE7;
+    display:flex; justify-content:space-around;
+    padding:8px 6px calc(10px + env(safe-area-inset-bottom));
+    max-width:480px; margin:0 auto; border-radius:18px 18px 0 0;
+  }
+  nav.tabs button{
+    border:0; background:none; font-size:11px; font-weight:600; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; gap:3px; padding:4px 10px; border-radius:10px;
+  }
+  nav.tabs button .em{ font-size:20px }
+  nav.tabs button.on{ color:var(--leaf-deep); background:var(--leaf-tint) }
+
+  /* ---------- auth ---------- */
+  .authhero{ text-align:center; padding:34px 0 8px }
+  .authhero .mark{ width:64px;height:64px;border-radius:20px;background:var(--leaf);color:#fff;display:grid;place-items:center;font-family:'Sora';font-weight:800;font-size:30px;margin:0 auto 14px; box-shadow:var(--shadow) }
+  .authhero h1{ font-size:26px; letter-spacing:-.02em }
+  .authhero p{ color:var(--muted); font-size:14px; margin-top:6px }
+  .seg{ display:flex; background:var(--leaf-tint); border-radius:12px; padding:4px; margin:18px 0 14px }
+  .seg button{ flex:1; border:0; padding:10px; border-radius:9px; background:none; font-weight:600; font-size:14px; color:var(--leaf-deep) }
+  .seg button.on{ background:#fff; box-shadow:0 2px 8px rgba(30,107,65,.12) }
+
+  /* ---------- misc ---------- */
+  .stat{ background:var(--card); border-radius:14px; padding:14px; box-shadow:var(--shadow) }
+  .stat b{ font-family:'Sora'; font-size:20px; display:block; font-variant-numeric:tabular-nums }
+  .stat span{ font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em }
+  .statgrid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px }
+  .bigcode{
+    font-family:'Sora'; font-weight:800; font-size:40px; letter-spacing:.28em;
+    text-align:center; color:var(--leaf-deep); padding:10px 0 4px; font-variant-numeric:tabular-nums;
+  }
+  .pill{ display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:99px; background:var(--leaf-tint); color:var(--leaf-deep) }
+  .pill.warn{ background:#FBEEDC; color:#8A6414 }
+  .pill.bad{ background:#F8E2E0; color:var(--danger) }
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:10px }
+  .toast{
+    position:fixed; left:50%; bottom:92px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:12px 18px; border-radius:12px;
+    font-size:14px; font-weight:500; opacity:0; pointer-events:none;
+    transition:all .25s ease; max-width:90%; text-align:center; z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+  .toast.err{ background:var(--danger) }
+  .empty{ text-align:center; color:var(--muted); font-size:14px; padding:26px 0 }
+  .screen{ display:none } .screen.on{ display:block }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <!-- ============ AUTH ============ -->
+  <section class="screen" id="scr-auth">
+    <div class="authhero">
+      <div class="mark">S</div>
+      <h1>Safe</h1>
+      <p>Send and receive Dalasi, anywhere in The Gambia.</p>
+    </div>
+    <div class="seg">
+      <button id="seg-login" class="on" onclick="authMode('login')">Log in</button>
+      <button id="seg-reg" onclick="authMode('register')">Create account</button>
+    </div>
+    <div class="card" style="margin-top:0">
+      <div class="field" id="f-name" style="display:none">
+        <label for="in-name">Full name</label>
+        <input id="in-name" autocomplete="name" placeholder="e.g. Fatou Ceesay">
+      </div>
+      <div class="field">
+        <label for="in-phone">Phone number</label>
+        <input id="in-phone" inputmode="tel" autocomplete="tel" placeholder="3001122">
+        <div class="hint">Gambian number — 7 digits, or with +220.</div>
+      </div>
+      <div class="field">
+        <label for="in-pin">4-digit PIN</label>
+        <input id="in-pin" inputmode="numeric" type="password" maxlength="4" placeholder="••••">
+      </div>
+      <button class="btn" id="btn-auth" onclick="doAuth()">Log in</button>
+    </div>
+  </section>
+
+  <!-- ============ APP SHELL ============ -->
+  <section class="screen" id="scr-app">
+    <header class="app">
+      <div class="brand">
+        <div class="mark">S</div>
+        <div><b>Safe</b><small id="role-label">Customer</small></div>
+      </div>
+      <button class="iconbtn" title="Log out" onclick="logout()">⎋</button>
+    </header>
+    <div id="view"></div>
+  </section>
+
+</div>
+
+<nav class="tabs" id="tabs" style="display:none"></nav>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= state & helpers ================= */
+let TOKEN = localStorage.getItem('safe_token') || null;
+let USER  = null;
+let TAB   = 'home';
+let MODE  = 'login';
+
+const $ = (id) => document.getElementById(id);
+const D = (bututs) => 'D ' + (Number(bututs)/100).toLocaleString('en-GM',{minimumFractionDigits:2, maximumFractionDigits:2});
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when = (ts) => new Date(ts).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+
+function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(t._h); t._h=setTimeout(()=>t.className='toast',3200); }
+
+async function api(action, data={}){
+  const res = await fetch('/api',{
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', ...(TOKEN?{Authorization:'Bearer '+TOKEN}:{}) },
+    body:JSON.stringify({action,...data})
+  });
+  const out = await res.json().catch(()=>({ok:false,error:'Network error'}));
+  if(res.status===401){ logout(); }
+  return out;
+}
+
+/* ================= auth ================= */
+function authMode(m){
+  MODE=m;
+  $('seg-login').classList.toggle('on',m==='login');
+  $('seg-reg').classList.toggle('on',m==='register');
+  $('f-name').style.display = m==='register'?'block':'none';
+  $('btn-auth').textContent = m==='register'?'Create account':'Log in';
+}
+async function doAuth(){
+  const b=$('btn-auth'); b.disabled=true;
+  const out = await api(MODE,{ name:$('in-name').value, phone:$('in-phone').value, pin:$('in-pin').value });
+  b.disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  TOKEN=out.token; localStorage.setItem('safe_token',TOKEN);
+  USER=out.user; enterApp();
+}
+function logout(){ TOKEN=null; USER=null; localStorage.removeItem('safe_token'); show('auth'); $('tabs').style.display='none'; }
+
+function show(name){
+  $('scr-auth').classList.toggle('on',name==='auth');
+  $('scr-app').classList.toggle('on',name==='app');
+}
+
+/* ================= shell ================= */
+const TABSETS = {
+  customer:[ ['home','🏠','Home'], ['send','📤','Send'], ['pay','🛍️','Pay'], ['code','🔐','Cash out'], ['hist','🧾','History'] ],
+  agent:[ ['ahome','🏪','Float'], ['cashin','📥','Cash in'], ['cashout','💵','Pay out'], ['hist','🧾','History'] ],
+  merchant:[ ['mhome','🏬','My shop'], ['hist','🧾','History'] ],
+  admin:[ ['dash','📊','Dashboard'], ['users','👥','Users'], ['hist','🧾','History'] ],
+};
+let PENDING_PAY = new URLSearchParams(location.search).get('pay');
+function enterApp(){
+  show('app');
+  $('role-label').textContent = USER.role==='admin'?'Administrator':USER.role==='agent'?'Agent':USER.role==='merchant'?'Merchant':'Customer';
+  const set = TABSETS[USER.role]||TABSETS.customer;
+  $('tabs').style.display='flex';
+  $('tabs').innerHTML = set.map(([id,em,label])=>
+    `<button id="tab-${id}" onclick="go('${id}')"><span class="em">${em}</span>${label}</button>`).join('');
+  if(PENDING_PAY && USER.role==='customer'){
+    const code = PENDING_PAY; PENDING_PAY = null;
+    history.replaceState(null,'',location.pathname);
+    go('pay');
+    setTimeout(()=>{ const el=$('p-code'); if(el){ el.value=code; payLookup(); } },60);
+  } else {
+    go(set[0][0]);
+  }
+}
+function go(tab){
+  TAB=tab;
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on',b.id==='tab-'+tab));
+  ({home:vHome, send:vSend, pay:vPay, code:vCode, hist:vHist,
+    ahome:vAgentHome, cashin:vCashIn, cashout:vCashOut, mhome:vMerchantHome,
+    dash:vDash, users:vUsers}[tab]||vHome)();
+}
+async function refreshMe(){
+  const out = await api('me'); if(out.ok){ USER=out.user; } return out.ok;
+}
+
+/* ================= shared pieces ================= */
+function noteCard(title){
+  return `
+  <div class="note">
+    <svg class="guilloche" viewBox="0 0 400 160" preserveAspectRatio="none" aria-hidden="true">
+      ${[0,1,2,3,4].map(i=>`<path d="M0 ${30+i*26} C 100 ${i*22}, 300 ${60+i*20}, 400 ${20+i*26}" fill="none" stroke="#3E9B63" stroke-opacity=".16" stroke-width="1"/>`).join('')}
+    </svg>
+    <div class="wm">D</div>
+    <div class="label">${title}</div>
+    <div class="amount"><small>GMD</small>${(Number(USER.balance)/100).toLocaleString('en-GM',{minimumFractionDigits:2})}</div>
+    <div class="holder">
+      <div class="who">${esc(USER.name)}<span>${esc(USER.phone)}</span></div>
+      <div class="serial">SAFE&nbsp;·&nbsp;#${String(USER.id).padStart(6,'0')}</div>
+    </div>
+  </div>`;
+}
+
+/* ================= customer views ================= */
+async function vHome(){
+  await refreshMe();
+  $('view').innerHTML = `
+    ${noteCard('Available balance')}
+    <div class="grid2">
+      <button class="action" onclick="go('send')"><span class="em">📤</span><b>Send money</b><span>To any Safe number</span></button>
+      <button class="action" onclick="go('pay')"><span class="em">🛍️</span><b>Pay a shop</b><span>Scan or enter shop code</span></button>
+      <button class="action" onclick="go('code')"><span class="em">🔐</span><b>Cash out</b><span>Get code for an agent</span></button>
+      <button class="action" onclick="go('hist')"><span class="em">🧾</span><b>History</b><span>All your transactions</span></button>
+    </div>
+    <div class="card"><h2>Recent activity</h2><div id="mini-hist"><div class="empty">Loading…</div></div></div>`;
+  const out = await api('history');
+  if(out.ok) $('mini-hist').innerHTML = renderTx(out.items.slice(0,5), out.me);
+}
+
+async function vSend(){
+  $('view').innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h2>Send money</h2>
+      <div class="field">
+        <label for="s-to">Receiver's phone</label>
+        <input id="s-to" inputmode="tel" placeholder="3001122" onblur="lookupName()">
+        <div class="hint" id="s-who"></div>
+      </div>
+      <div class="field">
+        <label for="s-amt">Amount (Dalasi)</label>
+        <input id="s-amt" inputmode="decimal" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label for="s-note">Note (optional)</label>
+        <input id="s-note" maxlength="60" placeholder="e.g. Lunch money">
+      </div>
+      <div class="field">
+        <label for="s-pin">Confirm with your PIN</label>
+        <input id="s-pin" inputmode="numeric" type="password" maxlength="4" placeholder="••••">
+      </div>
+      <button class="btn" id="s-btn" onclick="doSend()">Send now</button>
+    </div>`;
+}
+async function lookupName(){
+  const p=$('s-to').value.trim(); if(!p) return;
+  const out=await api('lookup',{phone:p});
+  $('s-who').textContent = out.ok ? '→ '+out.name : out.error;
+}
+async function doSend(){
+  const b=$('s-btn'); b.disabled=true;
+  const out=await api('send',{ to:$('s-to').value, amount:$('s-amt').value, note:$('s-note').value, pin:$('s-pin').value });
+  b.disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  toast('Sent ✓ Ref '+out.ref); go('home');
+}
+
+/* ----- pay a shop ----- */
+async function vPay(){
+  $('view').innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h2>Pay a shop</h2>
+      <p class="hint" style="margin-bottom:12px">Scan the shop's Safe QR with your phone camera, or type their 6-digit shop code below.</p>
+      <div class="field">
+        <label for="p-code">Shop code</label>
+        <input id="p-code" inputmode="numeric" maxlength="6" placeholder="000000" onblur="payLookup()"
+          style="letter-spacing:.3em;font-family:'Sora';font-weight:700;text-align:center;font-size:22px">
+        <div class="hint" id="p-who"></div>
+      </div>
+      <div class="field">
+        <label for="p-amt">Amount (Dalasi)</label>
+        <input id="p-amt" inputmode="decimal" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label for="p-note">Note (optional)</label>
+        <input id="p-note" maxlength="60" placeholder="e.g. Groceries">
+      </div>
+      <div class="field">
+        <label for="p-pin">Confirm with your PIN</label>
+        <input id="p-pin" inputmode="numeric" type="password" maxlength="4" placeholder="••••">
+      </div>
+      <button class="btn" id="p-btn" onclick="doPay()">Pay shop</button>
+    </div>`;
+}
+async function payLookup(){
+  const c=$('p-code').value.trim(); if(c.length<6) return;
+  const out=await api('merchant_lookup',{code:c});
+  $('p-who').textContent = out.ok ? '→ '+out.business_name : out.error;
+}
+async function doPay(){
+  const b=$('p-btn'); b.disabled=true;
+  const out=await api('pay',{ code:$('p-code').value, amount:$('p-amt').value, note:$('p-note').value, pin:$('p-pin').value });
+  b.disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  toast('Paid '+(out.shop||'shop')+' ✓ Ref '+out.ref); go('home');
+}
+
+/* ----- merchant home ----- */
+async function vMerchantHome(){
+  await refreshMe();
+  $('view').innerHTML = `
+    ${noteCard('Shop balance')}
+    <div class="statgrid" id="m-stats">
+      <div class="stat"><b>…</b><span>Sales today</span></div>
+      <div class="stat"><b>…</b><span>Payments today</span></div>
+    </div>
+    <div class="card" style="text-align:center">
+      <h2 style="text-align:left">${esc(USER.business_name||'My shop')}</h2>
+      <p class="hint" style="text-align:left;margin-bottom:12px">Customers scan this QR with their phone camera, or type your shop code in their Safe app.</p>
+      <div id="m-qr" style="display:inline-block;background:#fff;padding:12px;border-radius:14px;border:1.5px solid var(--leaf-tint)"></div>
+      <div class="bigcode" style="font-size:32px">${esc(USER.merchant_code||'——')}</div>
+      <p class="hint">Your shop code — print it, stick it on the counter.</p>
+    </div>`;
+  if(USER.merchant_code && window.QRCode){
+    new QRCode($('m-qr'), { text: location.origin + '/?pay=' + USER.merchant_code, width:180, height:180, colorDark:'#1E6B41' });
+  }
+  const out=await api('merchant_stats');
+  if(out.ok){
+    $('m-stats').innerHTML = `
+      <div class="stat"><b>${D(out.stats.today_total)}</b><span>Sales today</span></div>
+      <div class="stat"><b>${out.stats.today_count}</b><span>Payments today</span></div>`;
+  }
+}
+
+async function vCode(){
+  $('view').innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h2>Cash out at an agent</h2>
+      <p class="hint" style="margin-bottom:12px">Create a one-time code, then give it to any Safe agent. They pay you cash, the code moves the money. Codes last 30 minutes.</p>
+      <div class="field">
+        <label for="c-amt">Amount (Dalasi)</label>
+        <input id="c-amt" inputmode="decimal" placeholder="0.00">
+      </div>
+      <button class="btn" id="c-btn" onclick="doCode()">Create code</button>
+      <div id="c-out"></div>
+    </div>
+    <div class="card"><h2>My codes</h2><div id="c-list"><div class="empty">Loading…</div></div></div>`;
+  loadCodes();
+}
+async function doCode(){
+  const b=$('c-btn'); b.disabled=true;
+  const out=await api('create_code',{amount:$('c-amt').value});
+  b.disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  $('c-out').innerHTML = `<div class="bigcode">${out.code}</div>
+    <p class="hint" style="text-align:center">Show this code to the agent · ${D(out.amount)} · expires in 30 min</p>`;
+  loadCodes();
+}
+async function loadCodes(){
+  const out=await api('my_codes'); if(!out.ok) return;
+  $('c-list').innerHTML = out.items.length ? out.items.map(c=>`
+    <div class="tx"><div class="dot">🔐</div>
+      <div class="info"><b>${c.code}</b><span>${when(c.expires_at)} · expiry</span></div>
+      <div><span class="pill ${c.status==='pending'?'':(c.status==='used'?'':'bad')}">${c.status}</span>
+      <div class="amt out" style="text-align:right">${D(c.amount)}</div></div>
+    </div>`).join('') : '<div class="empty">No codes yet.</div>';
+}
+
+/* ================= history (all roles) ================= */
+function renderTx(items, meId){
+  if(!items.length) return '<div class="empty">Nothing here yet.</div>';
+  const label={send:'Transfer',cash_in:'Cash in',cash_out:'Cash out',float_topup:'Float top-up',payment:'Shop payment'};
+  const emoji={send:'📤',cash_in:'📥',cash_out:'💵',float_topup:'🏦',payment:'🛍️'};
+  return items.map(t=>{
+    const incoming = t.to_id===meId;
+    const other = incoming ? (t.from_name||'System') : (t.to_name||'—');
+    return `<div class="tx">
+      <div class="dot">${emoji[t.type]||'💠'}</div>
+      <div class="info"><b>${label[t.type]||t.type} · ${esc(other)}</b>
+        <span>${t.ref} · ${when(t.created_at)}${t.note?' · '+esc(t.note):''}</span></div>
+      <div class="amt ${incoming?'in':'out'}">${incoming?'+':'−'} ${D(t.amount)}</div>
+    </div>`;
+  }).join('');
+}
+async function vHist(){
+  $('view').innerHTML = `<div class="card" style="margin-top:4px"><h2>Transaction history</h2><div id="h-list"><div class="empty">Loading…</div></div></div>`;
+  const out=await api('history');
+  if(out.ok) $('h-list').innerHTML = renderTx(out.items,out.me);
+}
+
+/* ================= agent views ================= */
+async function vAgentHome(){
+  await refreshMe();
+  $('view').innerHTML = `
+    ${noteCard('Agent float')}
+    <div class="statgrid">
+      <div class="stat"><b>${D(USER.commission)}</b><span>Commission earned</span></div>
+      <div class="stat"><b>1%</b><span>Per cash in / out</span></div>
+    </div>
+    <div class="grid2">
+      <button class="action" onclick="go('cashin')"><span class="em">📥</span><b>Cash in</b><span>Customer gives you cash</span></button>
+      <button class="action" onclick="go('cashout')"><span class="em">💵</span><b>Pay out</b><span>Redeem customer code</span></button>
+    </div>`;
+}
+async function vCashIn(){
+  $('view').innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h2>Cash in (deposit)</h2>
+      <p class="hint" style="margin-bottom:12px">Collect cash from the customer first, then credit their wallet from your float.</p>
+      <div class="field">
+        <label for="ci-phone">Customer's phone</label>
+        <input id="ci-phone" inputmode="tel" placeholder="3001122" onblur="ciLookup()">
+        <div class="hint" id="ci-who"></div>
+      </div>
+      <div class="field">
+        <label for="ci-amt">Amount received (Dalasi)</label>
+        <input id="ci-amt" inputmode="decimal" placeholder="0.00">
+      </div>
+      <button class="btn" id="ci-btn" onclick="doCashIn()">Credit customer</button>
+    </div>`;
+}
+async function ciLookup(){
+  const out=await api('lookup',{phone:$('ci-phone').value});
+  $('ci-who').textContent = out.ok ? '→ '+out.name : out.error;
+}
+async function doCashIn(){
+  const b=$('ci-btn'); b.disabled=true;
+  const out=await api('cash_in',{phone:$('ci-phone').value, amount:$('ci-amt').value});
+  b.disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  toast(`Done ✓ Ref ${out.ref} · you earned ${D(out.commission)}`); go('ahome');
+}
+async function vCashOut(){
+  $('view').innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h2>Pay out (withdrawal)</h2>
+      <p class="hint" style="margin-bottom:12px">Ask the customer for their 6-digit code. Redeeming it moves the money to your float — then hand them the cash.</p>
+      <div class="field">
+        <label for="co-code">Customer's code</label>
+        <input id="co-code" inputmode="numeric" maxlength="6" placeholder="000000" style="letter-spacing:.3em;font-family:'Sora';font-weight:700;text-align:center;font-size:22px">
+      </div>
+      <button class="btn" id="co-btn" onclick="doCashOut()">Redeem code</button>
+    </div>`;
+}
+async function doCashOut(){
+  const b=$('co-btn'); b.disabled=true;
+  const out=await api('cash_out',{code:$('co-code').value});
+  b.disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  toast(`Redeemed ✓ Pay the customer ${D(out.amount)} cash`); go('ahome');
+}
+
+/* ================= admin views ================= */
+async function vDash(){
+  $('view').innerHTML = `<div id="dash"><div class="empty">Loading…</div></div>`;
+  const out=await api('admin_stats'); if(!out.ok) return toast(out.error,true);
+  const s=out.stats;
+  $('dash').innerHTML = `
+    <div class="statgrid" style="margin-top:4px">
+      <div class="stat"><b>${s.customers}</b><span>Customers</span></div>
+      <div class="stat"><b>${s.agents}</b><span>Agents</span></div>
+      <div class="stat"><b>${s.merchants}</b><span>Shops</span></div>
+      <div class="stat"><b>${D(s.total_float)}</b><span>Money in system</span></div>
+      <div class="stat"><b>${D(s.volume_24h)}</b><span>Volume · 24 h</span></div>
+      <div class="stat"><b>${s.tx_24h}</b><span>Transactions · 24 h</span></div>
+    </div>`;
+}
+async function vUsers(){
+  $('view').innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h2>Users</h2>
+      <div class="field"><input id="u-q" placeholder="Search name or phone" oninput="uSearch()"></div>
+      <div id="u-list"><div class="empty">Type to search, or wait…</div></div>
+    </div>`;
+  uSearch();
+}
+let uTimer;
+function uSearch(){ clearTimeout(uTimer); uTimer=setTimeout(loadUsers,300); }
+async function loadUsers(){
+  const out=await api('admin_users',{q:$('u-q')?.value||''});
+  if(!out.ok) return;
+  $('u-list').innerHTML = out.items.length ? out.items.map(u=>`
+    <div class="tx" style="flex-wrap:wrap">
+      <div class="dot">${u.role==='agent'?'🏪':u.role==='admin'?'🛡️':u.role==='merchant'?'🏬':'👤'}</div>
+      <div class="info"><b>${esc(u.role==='merchant'&&u.business_name?u.business_name+' ('+u.name+')':u.name)} <span class="pill">${u.role}</span> ${u.status==='frozen'?'<span class="pill bad">frozen</span>':''}</b>
+        <span>${esc(u.phone)} · bal ${D(u.balance)}${u.merchant_code?' · code '+u.merchant_code:''}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:8px;padding-left:50px">
+        ${u.role!=='admin'?`
+          ${u.role!=='agent'?`<button class="btn small ghost" onclick="setRole(${u.id},'agent')">Make agent</button>`:''}
+          ${u.role!=='merchant'?`<button class="btn small ghost" onclick="makeMerchant(${u.id})">Make shop</button>`:''}
+          ${u.role!=='customer'?`<button class="btn small ghost" onclick="setRole(${u.id},'customer')">Make customer</button>`:''}
+          <button class="btn small ghost" onclick="setStatus(${u.id},'${u.status==='active'?'frozen':'active'}')">${u.status==='active'?'Freeze':'Unfreeze'}</button>
+          ${u.role==='agent'?`<button class="btn small" onclick="topup(${u.id})">Top up float</button>`:''}
+        `:''}
+      </div>
+    </div>`).join('') : '<div class="empty">No matches.</div>';
+}
+async function setRole(id,role){ const o=await api('admin_set_role',{user_id:id,role}); o.ok?loadUsers():toast(o.error,true); }
+async function makeMerchant(id){
+  const bn=prompt('Shop / business name:'); if(!bn) return;
+  const o=await api('admin_set_role',{user_id:id,role:'merchant',business_name:bn});
+  o.ok?(toast('Shop created ✓ Code: '+o.merchant_code),loadUsers()):toast(o.error,true);
+}
+async function setStatus(id,status){ const o=await api('admin_set_status',{user_id:id,status}); o.ok?loadUsers():toast(o.error,true); }
+async function topup(id){
+  const amt=prompt('Float top-up amount (Dalasi):'); if(!amt) return;
+  const o=await api('admin_float_topup',{user_id:id,amount:amt});
+  o.ok?(toast('Float credited ✓'),loadUsers()):toast(o.error,true);
+}
+
+/* ================= boot ================= */
+(async function boot(){
+  if(TOKEN){
+    const out=await api('me');
+    if(out.ok){ USER=out.user; enterApp(); return; }
+  }
+  show('auth');
+})();
+</script>
+</body>
+</html>
