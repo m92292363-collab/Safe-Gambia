@@ -25,6 +25,7 @@ Your usual stack: single-file frontend + Netlify Function + Neon Postgres.
    package.json
    schema.sql
    migration-2-merchants.sql
+   migration-3-otp.sql
    netlify/functions/api.js
    ```
    (The `api.js` MUST be inside `netlify/functions/` — that folder path matters.)
@@ -41,6 +42,39 @@ Your usual stack: single-file frontend + Netlify Function + Neon Postgres.
      (this signs login sessions — never share it, never change it after launch)
 4. Go to **Deploys → Trigger deploy → Deploy site** so the new variables take effect.
 
+## Step 3b — Turn on real SMS codes (FREE, using your own phone)
+
+New accounts must verify their number with a 4-digit code (like Wave).
+Until you connect a sender, the app runs in **DEMO MODE**: the code shows
+on screen instead of arriving by SMS — perfect for testing.
+
+The FREE way — your Android phone becomes the SMS sender (SMSGate):
+
+1. On a spare or main Android phone, download the app from
+   https://sms-gate.app (Download App button — it's free, open source,
+   no registration needed).
+2. Install it, open it, and switch ON **Cloud server** mode.
+3. The app's Home screen shows a **username** and **password** — copy them.
+4. In Netlify → Environment variables, add:
+   - `SMSGATE_USERNAME`  (from the app)
+   - `SMSGATE_PASSWORD`  (from the app)
+5. Trigger a new deploy. Done — Safe now texts codes through YOUR phone,
+   using YOUR SIM, at your normal Gambian SMS rate (get an SMS bundle and
+   it's basically free).
+
+Keep that phone: plugged in, connected to internet, battery optimization
+OFF for the SMSGate app (so Android doesn't kill it), and loaded with an
+SMS bundle. That phone is now your SMS server.
+
+Good for pilots and hundreds of users. If Safe grows big, carriers may
+limit one SIM sending thousands of texts — at that point add Twilio as
+backup (the code already supports it: set `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN`, `TWILIO_FROM` and it's used automatically if your
+phone fails).
+
+SMS safety built in: codes are hashed in the database, expire in 5 minutes,
+max 5 wrong tries per code, and max 3 codes per number per 10 minutes.
+
 ## Step 4 — Make yourself admin
 
 1. Open your live site and **Create account** with your own phone number.
@@ -53,7 +87,7 @@ Your usual stack: single-file frontend + Netlify Function + Neon Postgres.
 ## Already deployed the first version?
 
 If your Neon database already has the original tables, DON'T re-run schema.sql.
-Instead run `migration-2-merchants.sql` once in the Neon SQL Editor — it adds the
+Instead run `migration-2-merchants.sql` and `migration-3-otp.sql` once each in the Neon SQL Editor — it adds the
 merchant columns and security columns without touching your data. Then push the
 updated `index.html` and `api.js` to GitHub and Netlify redeploys automatically.
 
