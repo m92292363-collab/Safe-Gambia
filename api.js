@@ -58,6 +58,49 @@ async function confirmPin(userId, pin) {
   return rows.length && verifyPin(pin, rows[0].pin_hash);
 }
 
+// Send an SMS. Tries YOUR OWN ANDROID PHONE first (SMSGate — free),
+// then Twilio if configured. If neither is set up, returns { sent:false }
+// and the app falls back to demo mode.
+async function sendSms(to, text) {
+  // Option 1 — SMSGate: your Android phone sends the SMS with your own SIM.
+  const sgUser = process.env.SMSGATE_USERNAME;
+  const sgPass = process.env.SMSGATE_PASSWORD;
+  if (sgUser && sgPass) {
+    try {
+      const res = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(`${sgUser}:${sgPass}`).toString('base64'),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ textMessage: { text }, phoneNumbers: [to] }),
+      });
+      if (res.ok || res.status === 202) return { sent: true };
+    } catch { /* fall through to Twilio */ }
+  }
+  // Option 2 — Twilio (paid, more reliable at scale).
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const tok = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM;
+  if (!sid || !tok || !from) return { sent: false };
+  try {
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(`${sid}:${tok}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({ To: to, From: from, Body: text }),
+      }
+    );
+    return { sent: res.ok };
+  } catch {
+    return { sent: false };
+  }
+}
+
 const normPhone = (p) => {
   let s = String(p || '').replace(/[\s-]/g, '');
   if (/^[0-9]{7}$/.test(s)) s = '+220' + s;
@@ -81,13 +124,45 @@ export default async (req) => {
 
   try {
     // ---------- PUBLIC ----------
+    if (action === 'request_otp') {
+      const phone = normPhone(body.phone);
+      if (!validPhone(phone)) return fail('Enter a valid Gambian number, e.g. 3001122');
+      const exists = await sql`SELECT 1 FROM users WHERE phone = ${phone}`;
+      if (exists.length) return fail('This number is already registered. Just log in with your PIN.');
+      // rate limit: max 3 codes per number per 10 minutes
+      const recent = await sql`
+        SELECT COUNT(*)::int AS n FROM otp_codes
+        WHERE phone = ${phone} AND created_at > now() - interval '10 minutes'`;
+      if (recent[0].n >= 3) return fail('Too many codes requested. Wait a few minutes.');
+      const code = String(crypto.randomInt(1000, 9999));
+      await sql`
+        INSERT INTO otp_codes (phone, code_hash, expires_at)
+        VALUES (${phone}, ${hashPin(code)}, now() + interval '5 minutes')`;
+      const sms = await sendSms(phone,
+        `Your Safe verification code is ${code}. It expires in 5 minutes. Never share this code with anyone.`);
+      if (sms.sent) return json({ ok: true, sent: true });
+      // Demo mode: Twilio not configured yet — show the code in-app so testing works.
+      return json({ ok: true, sent: false, demo_code: code });
+    }
+
     if (action === 'register') {
       const phone = normPhone(body.phone);
       if (!validPhone(phone)) return fail('Enter a valid Gambian number, e.g. 3001122');
       if (!body.name || String(body.name).trim().length < 2) return fail('Enter your full name');
       if (!/^[0-9]{4}$/.test(String(body.pin))) return fail('PIN must be exactly 4 digits');
+      if (!/^[0-9]{4}$/.test(String(body.otp))) return fail('Enter the 4-digit code we texted you');
       const exists = await sql`SELECT 1 FROM users WHERE phone = ${phone}`;
       if (exists.length) return fail('This number is already registered. Try logging in.');
+      // verify the SMS code (latest unused, unexpired one)
+      const codes = await sql`
+        SELECT id, code_hash, attempts FROM otp_codes
+        WHERE phone = ${phone} AND used = false AND expires_at > now()
+        ORDER BY created_at DESC LIMIT 1`;
+      if (!codes.length) return fail('Code expired — tap "Text me a code" again.');
+      if (codes[0].attempts >= 5) return fail('Too many wrong tries — request a new code.');
+      await sql`UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ${codes[0].id}`;
+      if (!verifyPin(body.otp, codes[0].code_hash)) return fail('Wrong code — check the SMS.');
+      await sql`UPDATE otp_codes SET used = true WHERE id = ${codes[0].id}`;
       const rows = await sql`
         INSERT INTO users (phone, name, pin_hash)
         VALUES (${phone}, ${String(body.name).trim()}, ${hashPin(body.pin)})
