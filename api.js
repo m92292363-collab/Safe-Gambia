@@ -64,7 +64,7 @@ async function confirmPin(userId, pin) {
 async function sendSms(to, text) {
   // Option 0 — httpSMS: your Android phone sends via your SIM (free tier: 200 SMS/month).
   const hsKey = process.env.HTTPSMS_API_KEY;
-  const hsFrom = process.env.HTTPSMS_FROM; // the gateway phone's own number, e.g. +2202015522
+  const hsFrom = process.env.HTTPSMS_FROM; // the gateway phone's own number (set in Netlify env vars)
   if (hsKey && hsFrom) {
     try {
       const res = await fetch('https://api.httpsms.com/v1/messages/send', {
