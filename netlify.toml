@@ -1,5 +1,9 @@
 [build]
   publish = "."
 
+[build.environment]
+  # HTTPSMS_FROM is a phone number, not a secret - don't fail the build over it
+  SECRETS_SCAN_OMIT_KEYS = "HTTPSMS_FROM"
+
 [functions]
   node_bundler = "esbuild"
