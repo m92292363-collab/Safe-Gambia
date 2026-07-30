@@ -62,6 +62,23 @@ async function confirmPin(userId, pin) {
 // then Twilio if configured. If neither is set up, returns { sent:false }
 // and the app falls back to demo mode.
 async function sendSms(to, text) {
+  // Option 0 — httpSMS: your Android phone sends via your SIM (free tier: 200 SMS/month).
+  const hsKey = process.env.HTTPSMS_API_KEY;
+  const hsFrom = process.env.HTTPSMS_FROM; // the gateway phone's own number, e.g. +2202015522
+  if (hsKey && hsFrom) {
+    try {
+      const res = await fetch('https://api.httpsms.com/v1/messages/send', {
+        method: 'POST',
+        headers: {
+          'x-api-key': hsKey,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: text, from: hsFrom, to }),
+      });
+      if (res.ok) return { sent: true };
+    } catch { /* fall through */ }
+  }
   // Option 1 — SMSGate: your Android phone sends the SMS with your own SIM.
   const sgUser = process.env.SMSGATE_USERNAME;
   const sgPass = process.env.SMSGATE_PASSWORD;
@@ -139,7 +156,7 @@ export default async (req) => {
         INSERT INTO otp_codes (phone, code_hash, expires_at)
         VALUES (${phone}, ${hashPin(code)}, now() + interval '5 minutes')`;
       const sms = await sendSms(phone,
-        `Your Safe verification code is ${code}. It expires in 5 minutes. Never share this code with anyone.`);
+        `Safe: ${code} is your verification code. It expires in 5 minutes. Never share this code with anyone. www.safe.gm`);
       if (sms.sent) return json({ ok: true, sent: true });
       // Demo mode: Twilio not configured yet — show the code in-app so testing works.
       return json({ ok: true, sent: false, demo_code: code });
