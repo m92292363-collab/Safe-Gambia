@@ -192,20 +192,27 @@
       <button id="seg-reg" onclick="authMode('register')">Create account</button>
     </div>
     <div class="card" style="margin-top:0">
-      <div class="field" id="f-name" style="display:none">
-        <label for="in-name">Full name</label>
-        <input id="in-name" autocomplete="name" placeholder="e.g. Fatou Ceesay">
-      </div>
       <div class="field">
         <label for="in-phone">Phone number</label>
         <input id="in-phone" inputmode="tel" autocomplete="tel" placeholder="3001122">
         <div class="hint">Gambian number — 7 digits, or with +220.</div>
       </div>
-      <div class="field">
-        <label for="in-pin">4-digit PIN</label>
+      <div class="field" id="f-otp" style="display:none">
+        <label for="in-otp">Code we texted you</label>
+        <input id="in-otp" inputmode="numeric" maxlength="4" placeholder="0000"
+          style="letter-spacing:.3em;font-family:'Sora';font-weight:700;text-align:center;font-size:22px">
+        <div class="hint" id="otp-hint"></div>
+      </div>
+      <div class="field" id="f-name" style="display:none">
+        <label for="in-name">Full name</label>
+        <input id="in-name" autocomplete="name" placeholder="e.g. Fatou Ceesay">
+      </div>
+      <div class="field" id="f-pin">
+        <label for="in-pin" id="pin-label">4-digit PIN</label>
         <input id="in-pin" inputmode="numeric" type="password" maxlength="4" placeholder="••••">
       </div>
       <button class="btn" id="btn-auth" onclick="doAuth()">Log in</button>
+      <button class="btn ghost" id="btn-resend" style="display:none;margin-top:10px" onclick="requestOtp()">Resend code</button>
     </div>
   </section>
 
@@ -252,16 +259,42 @@ async function api(action, data={}){
 }
 
 /* ================= auth ================= */
+let REG_STEP = 1; // 1 = enter phone, 2 = enter code + details
 function authMode(m){
-  MODE=m;
+  MODE=m; REG_STEP=1;
   $('seg-login').classList.toggle('on',m==='login');
   $('seg-reg').classList.toggle('on',m==='register');
-  $('f-name').style.display = m==='register'?'block':'none';
-  $('btn-auth').textContent = m==='register'?'Create account':'Log in';
+  renderAuthStep();
+}
+function renderAuthStep(){
+  const reg = MODE==='register';
+  $('f-otp').style.display  = (reg && REG_STEP===2) ? 'block' : 'none';
+  $('f-name').style.display = (reg && REG_STEP===2) ? 'block' : 'none';
+  $('f-pin').style.display  = (!reg || REG_STEP===2) ? 'block' : 'none';
+  $('pin-label').textContent = reg ? 'Choose a 4-digit PIN' : '4-digit PIN';
+  $('btn-resend').style.display = (reg && REG_STEP===2) ? 'block' : 'none';
+  $('btn-auth').textContent = !reg ? 'Log in' : (REG_STEP===1 ? 'Text me a code' : 'Create account');
+}
+async function requestOtp(){
+  const b=$('btn-auth'); b.disabled=true; $('btn-resend').disabled=true;
+  const out = await api('request_otp',{ phone:$('in-phone').value });
+  b.disabled=false; $('btn-resend').disabled=false;
+  if(!out.ok) return toast(out.error,true);
+  REG_STEP=2; renderAuthStep();
+  if(out.sent){
+    $('otp-hint').textContent='We sent a 4-digit code to your number by SMS.';
+    toast('Code sent by SMS ✓');
+  } else {
+    // demo mode — SMS gateway not connected yet
+    $('otp-hint').textContent='DEMO MODE (no SMS yet): your code is '+out.demo_code;
+    toast('Demo code: '+out.demo_code);
+  }
 }
 async function doAuth(){
+  if(MODE==='register' && REG_STEP===1) return requestOtp();
   const b=$('btn-auth'); b.disabled=true;
-  const out = await api(MODE,{ name:$('in-name').value, phone:$('in-phone').value, pin:$('in-pin').value });
+  const out = await api(MODE,{ name:$('in-name').value, phone:$('in-phone').value,
+    pin:$('in-pin').value, otp:$('in-otp').value });
   b.disabled=false;
   if(!out.ok) return toast(out.error,true);
   TOKEN=out.token; localStorage.setItem('safe_token',TOKEN);
